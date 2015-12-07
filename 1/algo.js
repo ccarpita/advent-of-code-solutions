@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const input = fs.readFileSync('./input', 'utf-8');
+const util = require('../util');
+const input = util.inputForDay(1);
 
 const op = {
   '(': x => x + 1,
