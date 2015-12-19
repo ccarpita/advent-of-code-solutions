@@ -31,7 +31,12 @@ function parser(regex, fields, transform) {
     }
     const item = {};
     for (let i = 0; i < fields.length; i++) {
-      item[fields[i]] = match[i + 1];
+      const nameFormat = fields[i].split(':');
+      let val = match[i + 1];
+      if (nameFormat[1] === 'number') {
+        val = Number(val);
+      }
+      item[nameFormat[0]] = val;
     }
     return transform ? transform(item) : item;
   }
@@ -40,3 +45,11 @@ exports.parser = parser;
 
 exports.identity = (id) => id;
 
+function traceFn(fn, name) {
+  return function() {
+    const res = fn.apply(null, arguments);
+    console.log(name || '(debug)', arguments, '=>', res);
+    return res;
+  }
+}
+exports.traceFn = traceFn;
