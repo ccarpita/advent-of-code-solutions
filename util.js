@@ -53,3 +53,27 @@ function traceFn(fn, name) {
   }
 }
 exports.traceFn = traceFn;
+
+/**
+ * Given an array of 2-element arrays, collect the results into a plain
+ * object where the first item of each pair is a key.  Later elements
+ * will override earlier elements with the same key, unless a reducer
+ * is specified.
+ * @param {Array<Array<>.length==2>}
+ * @param {Function} reduceFn
+ */
+function collectMap(arr, reduceFn) {
+  const reduceValue = reduceFn ? reduceFn : (current, next) => next;
+  return arr.reduce((acc, n) => {
+    acc[n[0]] = reduceValue(acc[n[0]], n[1]);
+    return acc;
+  }, {});
+}
+exports.collectMap = collectMap;
+
+function keyValues(obj) {
+  return Object.keys(obj)
+    .map(k => [k, obj[k]]);
+}
+exports.keyValues = keyValues;
+
