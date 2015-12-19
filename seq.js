@@ -35,7 +35,7 @@ function createFilter(from, predicate) {
 
   // Keep track of how many sequence items we have retrieved
   // from the parent sequence.  When the filtered sequence
-  // is pulled, we have to resume from this point.
+  // is pulled, we should resume from this point.
   let fromIter = 0;
 
   return new Sequence((i, sequence) => {
@@ -74,7 +74,6 @@ function createFilter(from, predicate) {
  */
 function Sequence(opt) {
   const options = Object.assign({
-    start: 0,
     closed: false
   }, typeof opt === 'function' ? {
     generator: opt
@@ -83,7 +82,6 @@ function Sequence(opt) {
   const buffer = [];
 
   let closed = options.closed;
-  let current = options.start;
 
   /**
    * If given an argument, pull a specific value from that index. If the given
@@ -92,18 +90,22 @@ function Sequence(opt) {
    * generated, cached for future calls, and returned.
    */
   this.pull = i => {
-    if (check(i) && i < buffer.length) {
-      return buffer[i];
+    const pos = i || buffer.length;
+    if (pos < buffer.length) {
+      return buffer[pos];
     }
     if (closed) {
       return null;
     }
-    const result = buffer[current] = options.generator(current, this);
+    const result = options.generator(pos, this);
+
+    if (check(result)) {
+      buffer[pos] = result;
+    }
     if (!check(result)
-        || (options.closeWhen && options.closeWhen(current + 1))) {
+        || (options.closeWhen && options.closeWhen(i + 1))) {
       closed = true;
     }
-    current++;
     return result;
   };
 
@@ -113,25 +115,56 @@ function Sequence(opt) {
 
   this.filter = predicate => createFilter(this, predicate);
 
-  this.map = transform => new Sequence(i => transform(this.pull(i)));
+  // Map usage results in OOM errors, need to debug:
+  // this.map = transform => new Sequence(i => transform(this.pull(i)));
 
   this.first = () => this.pull(0);
 
-  this.toArray = n => range(0, n).map(i => this.pull(i));
+  this.toArray = () => {
+    this.resolve();
+    return buffer.slice(0);
+  };
 
-  this.reduce = (fn, init, n) => this.toArray(n).reduce(fn, init);
+  this.reduce = (fn, init) => this.toArray().reduce(fn, init);
 
+  // Fill the buffer up to the max safe integer limit, returning
+  // null if the limit was reached, or the total buffer length;
+  this.resolve = () => {
+    let len = buffer.length;
+    for (; check(this.pull(len)); len++) {
+      if (len === Math.MAX_SAFE_INTEGER) {
+        this.close();
+        return null;
+      }
+    }
+    return len;
+  };
+
+  this.length = () => {
+    if (closed) {
+      return buffer.length;
+    }
+    return this.resolve();
+  };
+
+  this.last = () => {
+    if (!closed) {
+      this.resolve();
+    }
+    return buffer[this.length() - 1];
+  };
 };
 
-function seq(gen) {
-  let init = 0;
-  if (typeof gen === 'number') {
-    init = gen;
-    gen = function(i) {
-      return i + init;
-    }
+function seq(generator, closeWhen) {
+  if (typeof generator === 'number') {
+    const init = generator;
+    generator = (i) => i + init;
   }
-  return new Sequence(gen);
+  if (typeof closeWhen === 'number') {
+    const last = closeWhen;
+    closeWhen = (i) => i > last;
+  }
+  return new Sequence({generator, closeWhen});
 }
 
 module.exports = seq;

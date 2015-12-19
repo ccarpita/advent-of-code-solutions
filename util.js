@@ -5,6 +5,8 @@ const path = require('path');
 const crypto = require('crypto');
 const assert = require('assert');
 
+exports.seq = require('./seq');
+
 function inputForDay(day) {
   return fs.readFileSync(path.join(__dirname, String(day), 'input'), 'utf-8');
 }
@@ -15,10 +17,7 @@ function md5hex(str) {
   md5sum.update(str);
   return md5sum.digest('hex');
 }
-
 exports.md5hex = md5hex;
-
-exports.seq = require('./seq');
 
 function parser(regex, fields, transform) {
   assert(typeof regex.test === 'function');
