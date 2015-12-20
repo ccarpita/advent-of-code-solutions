@@ -76,3 +76,31 @@ function keyValues(obj) {
 }
 exports.keyValues = keyValues;
 
+
+function range(from, to) {
+  const r = [];
+  for (let i = from; i <= to; i++) {
+    r.push(i);
+  }
+  return r;
+}
+exports.range = range;
+
+function isArray(o) {
+  return typeof o === 'object'
+    && typeof o.length === 'number'
+    && !o.propertyIsEnumerable('length');
+};
+
+function flatten(arr) {
+  const f = [];
+  arr.forEach(i => {
+    if (isArray(i)) {
+      i.forEach(ii => f.push(ii));
+    } else {
+      f.push(i);
+    }
+  });
+  return f;
+}
+exports.flatten = flatten;
