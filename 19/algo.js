@@ -91,22 +91,10 @@ function nextSteps(mappings, molecule) {
   return Object.keys(uniq);
 }
 
-function every(num, fn) {
-  let i = 0;
-  return function() {
-    i++;
-    if (i % num === 0) {
-      fn.apply(null, arguments);
-    }
-  }
-}
-
 /**
  * Generate a decision tree.
  */
 function generateTree(mappings, molecule) {
-
-  const log = every(100000000, node => console.log(node));
 
   // Since we sort next-steps by the greatest possible reduction
   // to the molecule, we know that the first result achieved is

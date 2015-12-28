@@ -220,3 +220,20 @@ function generateDecisionTree(nextFn, completionPredicate, compareFn, value, _pa
   return node;
 }
 exports.generateDecisionTree = generateDecisionTree;
+
+function benchReport(ms, mesg) {
+  let last;
+  let i = 0;
+  return function() {
+    i++;
+    const current = Date.now();
+    if (!last || (current - last) >= ms) {
+      const args = Array.prototype.slice.call(arguments);
+      if (last) {
+        console.log('bench[' + mesg + ']: ' + (current - last) + 'ms, ' + i + ' iterations, ' + args.toString());
+      }
+      last = current;
+    }
+  }
+}
+exports.benchReport = benchReport;
