@@ -53,13 +53,24 @@ function traceFn(fn, name) {
 }
 exports.traceFn = traceFn;
 
+function curry(fn, args) {
+  const slice = args.slice;
+  const curried = slice.call(args);
+  return function() {
+    return fn.apply(null, curried.concat(slice.call(arguments)));
+  }
+}
+exports.curry = curry;
+
 /**
  * Given an array of 2-element arrays, collect the results into a plain
- * object where the first item of each pair is a key.  Later elements
- * will override earlier elements with the same key, unless a reducer
- * is specified.
- * @param {Array<Array<>.length==2>}
- * @param {Function} reduceFn
+ * object where the first item of each pair is a key.  Elements in the
+ * list will override any earlier encountered elements with the same key,
+ * unless a manual reducer is specified.
+ *
+ * @param {Array<Array<*>.length==2>}
+ *   Example: [['key1', 'value1'], ['key2', 'value2']]
+ * @param {Function} [reduceFn] Default: (current, next) => next
  */
 function collectMap(arr, reduceFn) {
   const reduceValue = reduceFn ? reduceFn : (current, next) => next;
@@ -69,6 +80,11 @@ function collectMap(arr, reduceFn) {
   }, {});
 }
 exports.collectMap = collectMap;
+
+exports.collectMultiMap = arr => collectMap(
+  arr,
+  (vs, next) => vs ? (vs.push(next) && vs) : [next]
+);
 
 function keyValues(obj) {
   return Object.keys(obj)
@@ -104,3 +120,103 @@ function flatten(arr) {
   return f;
 }
 exports.flatten = flatten;
+
+function flatMap(arr, mapFn) {
+  let flattened = [];
+  arr.forEach(i => {
+    const mapped = mapFn(i);
+    if (isArray(mapped)) {
+      mapped.forEach(item => flattened.push(item));
+    } else {
+      flattened.push(mapped);
+    }
+  });
+  return flattened;
+}
+exports.flatMap = flatMap;
+
+function memoize(fn) {
+  const slice = [].slice;
+  const curried = new Map();
+  const results = new Map();
+  return function() {
+    const rest = slice.call(arguments);
+    const first = rest.shift();
+    if (rest.length) {
+      if (!curried.has(first)) {
+        curried.set(arg, memoize(curry(fn, [first])));
+      }
+      return curried.get(arg).apply(null, rest);
+    }
+    if (!results.has(first)) {
+      results.set(first, fn(first));
+    }
+    return results.get(first);
+  }
+}
+exports.memoize = memoize;
+
+
+/**
+ * This function uses a generators, predicate, and comparison function to
+ * recursively generate a sparse decision tree.  Nodes passing the completion
+ * predicate are eligible for selection as the optimum.
+ *
+ * Nodes in the tree will contain references to their parents, but not vice versa,
+ * so GC can cleanup processed decision paths.  Thus the maximum live memory used
+ * by the tree will equal sizeof(Node) * depth.
+ *
+ * A Node has the following shape:
+ * {
+ *   value: any,
+ *   parent: maybe(instanceOf(Node)),
+ *   depth: Number,
+ *   root: instanceOf(Node),
+ *
+ *   // Set on root nodes, and resolved when tree generation is complete.
+ *   optimum: maybe(Node)
+ * }
+ *
+ * @param {Function<Node, Array<Value>} nextFn A function which takes a node
+ *   and returns an array of values to be used to generate the child nodes.
+ *
+ * @param {Function<Node, Boolean>} completionPredicate A function which takes
+ *   a node and returns true if the node is "complete", which means that it can
+ *   be used as an optimum, and no child nodes will be processed.
+ * @param {BiFunction<Node, Node, Number>} compareFn A function which compares
+ *   two nodes.  If the returned value is greater than zero, the first passed
+ *   node is considered to be more optimal than the second node.
+ * @param {*} value The initial root node value of the tree.
+ *
+ * @private @param {Node} [_parent] Used recursively. If set, the node returned is
+ *   an intermediate node and not the root node.
+ */
+function generateDecisionTree(nextFn, completionPredicate, compareFn, value, _parent) {
+
+  const parent = _parent;
+  const depth = parent ? parent.depth + 1 : 0;
+  const node = {
+    value,
+    depth,
+    parent
+  };
+  const root = parent ? parent.root : node;
+  node.root = root;
+
+  if (completionPredicate(node)) {
+    if (!root.optimum || compareFn(node, root.optimum) > 0) {
+      root.optimum = node;
+    }
+  } else {
+    nextFn(node)
+      .forEach(value => generateDecisionTree(
+        nextFn,
+        completionPredicate,
+        compareFn,
+        value,
+        node
+      ));
+  }
+  return node;
+}
+exports.generateDecisionTree = generateDecisionTree;
