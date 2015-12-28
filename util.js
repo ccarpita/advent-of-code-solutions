@@ -104,8 +104,10 @@ exports.range = range;
 
 function isArray(o) {
   return typeof o === 'object'
-    && typeof o.length === 'number'
-    && !o.propertyIsEnumerable('length');
+    && o !== null
+    && o.hasOwnProperty('length')
+    && !o.propertyIsEnumerable('length')
+    && typeof o.length === 'number';
 };
 
 function flatten(arr) {
